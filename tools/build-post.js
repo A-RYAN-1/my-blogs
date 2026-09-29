@@ -91,6 +91,22 @@ bodyMd = bodyMd.replace(/((?:^\|.*\|\s*\n)+)/gm, (table) => {
 
 marked.setOptions({ gfm: true, breaks: false });
 let body = marked.parse(bodyMd);
+const url = `${site.url}/${slug}/`;
+
+// Paste page for Medium: open it, Ctrl+A, Ctrl+C, paste into a new story. Medium's importer
+// mangles code and spacing, but its paste handler keeps them if the HTML avoids three things it
+// gets wrong (found by pasting test variants, 2026-09-29):
+// - a blank line inside <pre> splits the code block in two → blank lines carry a no-break space
+// - whitespace inside <blockquote> becomes an empty line in the quote → none there, and a
+//   multi-paragraph quote becomes one paragraph with <br> (label, then text)
+// - <figcaption> is dropped → the "*Figure N — …*" line stays an italic paragraph under the image,
+//   to be moved into Medium's caption field by hand
+const pasteBody = body
+  .replace(/src="(?!https?:)([^"]+?)(?:\.svg|\.png)"/g, (_, base) => `src="${url}${base}.png"`)
+  .replace(/<pre><code(?: class="[^"]*")?>([\s\S]*?)<\/code><\/pre>/g,
+    (_, code) => `<pre>${code.replace(/\n$/, '').replace(/^$/gm, ' ')}</pre>`)
+  .replace(/<blockquote>([\s\S]*?)<\/blockquote>/g,
+    (_, inner) => `<blockquote><p>${inner.trim().replace(/^<p>|<\/p>$/g, '').replace(/<\/p>\s*<p>/g, '<br>')}</p></blockquote>`);
 
 // Image paragraph + following "*Figure N — …*" paragraph → <figure> with caption, PNG source.
 body = body.replace(
@@ -99,17 +115,6 @@ body = body.replace(
 );
 body = body.replace(/src="([^"]+)\.svg"/g, 'src="$1.png"');
 
-// Medium's importer turns every newline between block elements into an empty block, ignores
-// newlines inside <pre>, and splits multi-paragraph quotes. So the body is written the way
-// Medium's own export writes it: code lines joined with <br> (no trailing newline, no inner
-// <code>), one paragraph per quote, and no whitespace between block tags.
-body = body.replace(/<pre><code(?: class="language-([\w-]+)")?>([\s\S]*?)<\/code><\/pre>/g,
-  (_, lang, code) => `<pre${lang ? ` data-lang="${lang}"` : ''}>${code.replace(/\n$/, '').replace(/\n/g, '<br>')}</pre>`);
-body = body.replace(/<blockquote>([\s\S]*?)<\/blockquote>/g,
-  (_, inner) => `<blockquote>${inner.trim().replace(/^<p>|<\/p>$/g, '').replace(/<\/p>\s*<p>/g, '<br>')}</blockquote>`);
-body = body.replace(/>\s*\n\s*</g, '><').trim();
-
-const url = `${site.url}/${slug}/`;
 const firstFigure = body.match(/src="(diagrams\/01-[^"]+\.png)"/);
 const ogImage = firstFigure ? `${url}${firstFigure[1]}` : '';
 
@@ -186,6 +191,30 @@ ${footer(false)}
 const outDir = path.join(ROOT, slug);
 fs.mkdirSync(path.join(outDir, 'diagrams'), { recursive: true });
 fs.writeFileSync(path.join(outDir, 'index.html'), page);
+// Nothing but the story on the paste page, so Ctrl+A copies exactly what Medium should get.
+fs.writeFileSync(path.join(outDir, 'paste.html'), `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<link rel="canonical" href="${url}">
+<title>Paste into Medium — ${esc(title)}</title>
+<style>
+  body { margin: 0; background: #fff; color: #111; font: 19px/1.7 Georgia, serif; }
+  main { max-width: 700px; margin: 0 auto; padding: 32px 16px 64px; }
+  img { max-width: 100%; }
+  pre { background: #f4f4f2; padding: 12px; overflow-x: auto; font: 14px/1.5 Menlo, Consolas, monospace; }
+  blockquote { border-left: 3px solid #111; margin-left: 0; padding-left: 1em; }
+</style>
+</head>
+<body>
+<main>
+<h1>${esc(title)}</h1>
+${dek ? `<p>${esc(dek)}</p>\n` : ''}${pasteBody}</main>
+</body>
+</html>
+`);
 // Only PNGs are published, so the markdown copy points at them too.
 fs.writeFileSync(path.join(outDir, 'post.md'), md.replace(/(\]\(diagrams\/[^)]+)\.svg\)/g, '$1.png)'));
 const srcDiagrams = path.join(srcDir, 'diagrams');

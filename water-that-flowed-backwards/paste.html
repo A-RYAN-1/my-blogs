@@ -3,52 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The Water That Flowed Backwards</title>
-<meta name="description" content="One line of Go turned perfectly valid water-meter readings into impossible graphs — and the safety net we built afterwards turned out to be the same bug in a smaller costume.">
-<meta name="author" content="Aryan Deshmukh">
+<meta name="robots" content="noindex">
 <link rel="canonical" href="https://a-ryan-1.github.io/my-blogs/water-that-flowed-backwards/">
-<link rel="alternate" type="application/rss+xml" title="Aryan Deshmukh — Blog" href="https://a-ryan-1.github.io/my-blogs/feed.xml">
-<meta property="og:type" content="article">
-<meta property="og:title" content="The Water That Flowed Backwards">
-<meta property="og:description" content="One line of Go turned perfectly valid water-meter readings into impossible graphs — and the safety net we built afterwards turned out to be the same bug in a smaller costume.">
-<meta property="og:url" content="https://a-ryan-1.github.io/my-blogs/water-that-flowed-backwards/">
-<meta property="article:published_time" content="2026-09-29">
-<meta property="og:image" content="https://a-ryan-1.github.io/my-blogs/water-that-flowed-backwards/diagrams/01-pipeline.png">
-<meta name="twitter:card" content="summary_large_image">
+<title>Paste into Medium — The Water That Flowed Backwards</title>
 <style>
-  :root { --fg: #1a1a1a; --muted: #5f5f5f; --bg: #fff; --code: #f4f4f2; --rule: #e4e4e0; }
-  @media (prefers-color-scheme: dark) {
-    :root { --fg: #e8e6e1; --muted: #a09d96; --bg: #161616; --code: #232322; --rule: #333; }
-  }
-  body { margin: 0; background: var(--bg); color: var(--fg); font: 19px/1.7 Georgia, "Times New Roman", serif; }
-  .wrap { max-width: 700px; margin: 0 auto; padding: 0 16px; }
-  h1, h2, h3, .sans { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; line-height: 1.25; }
-  a { color: inherit; }
-  .muted { color: var(--muted); }
-  .site-footer { border-top: 1px solid var(--rule); margin-top: 48px; padding: 24px 0 64px; font-size: .8em; }
-  .site-footer a { margin-right: 1.2em; }
-  article { padding-top: 48px; }
-  h1 { font-size: 2.2em; margin: 0 0 .3em; }
-  .dek { color: var(--muted); font-size: 1.15em; margin: 0 0 1.2em; }
-  .byline { font-size: .8em; margin: 0 0 2.5em; }
-  h2 { margin-top: 2em; }
-  img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
-  figure { margin: 2em 0; }
-  figcaption { color: var(--muted); font-size: .85em; text-align: center; margin-top: .6em; }
-  pre { background: var(--code); padding: 14px 16px; overflow-x: auto; white-space: pre; font-family: Menlo, Consolas, monospace; font-size: .78em; line-height: 1.5; border-radius: 4px; }
-  code { font-family: Menlo, Consolas, monospace; font-size: .9em; }
-  pre code { font-size: 1em; }
-  blockquote { margin: 1.6em 0; padding-left: 1em; border-left: 3px solid var(--fg); font-style: italic; }
-  hr { border: 0; border-top: 1px solid var(--rule); margin: 2.5em 0; }
+  body { margin: 0; background: #fff; color: #111; font: 19px/1.7 Georgia, serif; }
+  main { max-width: 700px; margin: 0 auto; padding: 32px 16px 64px; }
+  img { max-width: 100%; }
+  pre { background: #f4f4f2; padding: 12px; overflow-x: auto; font: 14px/1.5 Menlo, Consolas, monospace; }
+  blockquote { border-left: 3px solid #111; margin-left: 0; padding-left: 1em; }
 </style>
 </head>
 <body>
-<article class="wrap">
-<header>
+<main>
 <h1>The Water That Flowed Backwards</h1>
-<p class="dek">One line of Go turned perfectly valid water-meter readings into impossible graphs — and the safety net we built afterwards turned out to be the same bug in a smaller costume.</p>
-</header>
-<!-- body:start -->
+<p>One line of Go turned perfectly valid water-meter readings into impossible graphs — and the safety net we built afterwards turned out to be the same bug in a smaller costume.</p>
 <p>You open the dashboard for a flat that&#39;s been flagged. The consumption graph dips below zero — the resident, apparently, has un-drunk fifty litres of water — then spikes back up to roughly double the dip, and carries on as if nothing happened.</p>
 <p>You&#39;ve seen this shape before. A flaky meter, you think. Junk data. Move on.</p>
 <p>That&#39;s exactly what we told ourselves, on a handful of flats, more than once — because the alternative, that our own ingestion pipeline was quietly corrupting good data, seemed far less likely than a flaky meter.</p>
@@ -56,91 +25,68 @@
 <p>That asymmetry felt like proof. It wasn&#39;t. It was the clue.</p>
 <h2>What the meters actually report</h2>
 <p>A water meter on this system does not report consumption. It reports a cumulative pulse counter, like a car&#39;s odometer, which the backend converts into litres:</p>
-<pre><code class="language-text">reading = (pulseh × 65536 + pulsel) × least_count + offset
-</code></pre>
+<pre>reading = (pulseh × 65536 + pulsel) × least_count + offset</pre>
 <p><code>pulseh</code> and <code>pulsel</code> are the high and low halves of a 32-bit pulse count, <code>least_count</code> is the litres-per-pulse calibration stored against each sensor, and <code>offset</code> absorbs meter replacements and manual corrections.</p>
 <p>Consumption is never transmitted. It is always <em>derived</em>, by subtracting one reading from the one before it:</p>
-<pre><code class="language-text">Time    Counter     Derived consumption
+<pre>Time    Counter     Derived consumption
 -----   ---------   -------------------
 10:00   100,000 L   —
 10:01   100,050 L   50 L
-10:02   100,100 L   50 L
-</code></pre>
+10:02   100,100 L   50 L</pre>
 <p>This is a deliberate and good design. A cumulative counter is self-healing: lose the 10:01 packet entirely and you still get the right total, because <code>100,100 − 100,000 = 100</code>. You lose resolution, not correctness. A meter that reported deltas instead — <code>+50</code>, <code>+50</code> — would lose fifty litres permanently to that same dropped packet.</p>
 <p>But the design carries a hard requirement, and it is easy to miss because nothing in the code ever states it.</p>
-<blockquote>
-<p><strong>THE UNSTATED CONTRACT</strong></p>
-<p>Subtracting two cumulative counters is only meaningful if they are in the order the meter produced them. Get the order wrong and a perfectly valid pair of readings yields an invalid answer.</p>
-</blockquote>
+<blockquote><p><strong>THE UNSTATED CONTRACT</strong><br>Subtracting two cumulative counters is only meaningful if they are in the order the meter produced them. Get the order wrong and a perfectly valid pair of readings yields an invalid answer.</p></blockquote>
 <h2>The hypothesis that survived too long</h2>
 <p>Our reasoning went like this:</p>
-<blockquote>
-<p>If the software were broken, every meter would be broken. Only some meters are broken. Therefore the problem is not the software.</p>
-</blockquote>
+<blockquote><p>If the software were broken, every meter would be broken. Only some meters are broken. Therefore the problem is not the software.</p></blockquote>
 <p>Every step of that is sound except the premise buried in the first clause — that a software defect must affect all of its inputs uniformly. That is false for any bug whose trigger is environmental. A race condition depends on timing. An ordering bug depends on network jitter. Both will happily correlate with specific hardware, specific locations and specific network paths, producing a pattern that looks exactly like a hardware fault.</p>
-<blockquote>
-<p><strong>We had a real correlation. We drew the wrong arrow from it.</strong></p>
-</blockquote>
+<blockquote><p><strong>We had a real correlation. We drew the wrong arrow from it.</strong></p></blockquote>
 <p>The affected flats genuinely did share something physical — we just assumed that shared property was the cause, when it was only the trigger.</p>
 <h2>Following the timestamp</h2>
 <p>What eventually broke the hypothesis was not a new observation. It was an old one nobody had looked at: the meter packet already told us when the measurement was taken. The payload contract had carried that field since the beginning.</p>
-<pre><code class="language-go">type ThingsPayload struct {
+<pre>type ThingsPayload struct {
     Data      map[string]interface{} `json:&quot;data&quot;`
     ThingKey  string                 `json:&quot;thing_key&quot;`
     // the meter&#39;s own clock, e.g. 1615031018
     TimeStamp uint64                 `json:&quot;time_stamp&quot;`
-}
-</code></pre>
+}</pre>
 <p>So we followed that field from the meter all the way to the graph.</p>
-<figure>
-<img src="diagrams/01-pipeline.png" alt="The ingestion pipeline from water meter through gateway, MQTT broker, Go event handler, hypertable and Rails consumption service, with a green track showing event time alive for the first half and a red track showing arrival time substituted from the event handler onward.">
-<figcaption>Figure 1 — Event time is born at the meter and dies four stages later. Everything downstream runs on whichever clock survives that point.</figcaption>
-</figure>
+<p><img src="https://a-ryan-1.github.io/my-blogs/water-that-flowed-backwards/diagrams/01-pipeline.png" alt="The ingestion pipeline from water meter through gateway, MQTT broker, Go event handler, hypertable and Rails consumption service, with a green track showing event time alive for the first half and a red track showing arrival time substituted from the event handler onward."></p>
+<p><em>Figure 1 — Event time is born at the meter and dies four stages later. Everything downstream runs on whichever clock survives that point.</em></p>
 <p>It did not survive. Inside the MQTT event handler, immediately after unmarshalling and before anything else touched the payload:</p>
-<pre><code class="language-go">err := json.Unmarshal(m.Payload(), &amp;thingsPayload)
+<pre>err := json.Unmarshal(m.Payload(), &amp;thingsPayload)
 if err != nil { /* reject */ }
-
+ 
 // the device clock, discarded before anything reads it
 thingsPayload.TimeStamp = uint64(time.Now().Unix())
-
-err = thingsPayload.Validate()
-</code></pre>
+ 
+err = thingsPayload.Validate()</pre>
 <p><strong>For engineers:</strong> subtracting values from a monotonic counter is only valid if you preserve the counter&#39;s own total order. Swap in any other order relation — arrival time, insertion time, whatever a downstream system happens to use — and correctness now depends entirely on how closely that substitute order tracks the real one.</p>
-<blockquote>
-<p><strong>We replaced the device&#39;s clock with our own, before anyone thought to ask which one was right.</strong></p>
-</blockquote>
+<blockquote><p><strong>We replaced the device&#39;s clock with our own, before anyone thought to ask which one was right.</strong></p></blockquote>
 <p>There was a second casualty in those three lines, and it went unnoticed far longer. The payload validator rejects a missing timestamp:</p>
-<pre><code class="language-go">if p.TimeStamp == 0 {
+<pre>if p.TimeStamp == 0 {
     return apperrors.ErrNoTimeStamp
-}
-</code></pre>
+}</pre>
 <p>But the overwrite ran <em>before</em> <code>Validate()</code>. By the time that check executed, <code>TimeStamp</code> was always a fresh, non-zero server clock value.</p>
-<figure>
-<img src="diagrams/02-dead-guard.png" alt="Three steps of the event handler shown in order: unmarshal the payload, overwrite the timestamp with the server clock, then call Validate. A panel beside the third step explains that TimeStamp is now always non-zero, so the guard against a missing device clock can never see the condition it was written to catch.">
-<figcaption>Figure 2 — A guard against a missing device clock, made structurally unreachable by the line written two before it.</figcaption>
-</figure>
+<p><img src="https://a-ryan-1.github.io/my-blogs/water-that-flowed-backwards/diagrams/02-dead-guard.png" alt="Three steps of the event handler shown in order: unmarshal the payload, overwrite the timestamp with the server clock, then call Validate. A panel beside the third step explains that TimeStamp is now always non-zero, so the guard against a missing device clock can never see the condition it was written to catch."></p>
+<p><em>Figure 2 — A guard against a missing device clock, made structurally unreachable by the line written two before it.</em></p>
 <p>The guard could never fire. We had a validation rule for device clocks that had been unreachable since the day it was written — and because it never fired, it never told us anything was wrong.</p>
 <h2>Correct code, operating on the wrong clock</h2>
 <p>Here is the part I find genuinely instructive. The consumption calculation is not sloppy. It sorts before it subtracts:</p>
-<pre><code class="language-ruby"># refuse to trust row order: sort ascending by timestamp
+<pre># refuse to trust row order: sort ascending by timestamp
 readings = readings.reject(&amp;:empty?).sort_by { |r| r[0] }
-
+ 
 # then subtract each reading from the one after it
 readings.each_with_index.map do |reading, i|
   nxt = readings[i + 1]
   [nxt[0], (nxt[1].to_f - reading[1].to_f).round(2)] if nxt
-end.compact
-</code></pre>
+end.compact</pre>
 <p>That code is careful and defensive. It explicitly refuses to trust whatever order the rows came back in, sorts ascending, and only then walks consecutive pairs. Reviewed in isolation, you would approve it. I would approve it.</p>
 <p>It sorts by the timestamp column. And the timestamp column held arrival time. So the sort did precisely what it was told — ordered the readings by when our server happened to receive them, with total confidence — and handed that sequence to the subtraction.</p>
 <p>It is the same mistake a sorting clerk makes reading a stack of registered-mail receipts instead of the letters inside them: the receipt proves a letter arrived, in the order it was stamped at the counter, and says nothing about which letter was written first.</p>
-<blockquote>
-<p><strong>The sort did precisely what it was told. It just wasn&#39;t told the truth about the clock.</strong></p>
-</blockquote>
-<figure>
-<img src="diagrams/03-ordering.png" alt="Two panels comparing the same pair of readings. Sorted by event time the subtraction gives plus fifty litres and matches the meter; sorted by arrival time the pair inverts and gives minus fifty litres, followed by a plus one hundred litre compensating spike.">
-<figcaption>Figure 3 — The same two readings, the same arithmetic, two different clocks. Only the ordering changed.</figcaption>
-</figure>
+<blockquote><p><strong>The sort did precisely what it was told. It just wasn&#39;t told the truth about the clock.</strong></p></blockquote>
+<p><img src="https://a-ryan-1.github.io/my-blogs/water-that-flowed-backwards/diagrams/03-ordering.png" alt="Two panels comparing the same pair of readings. Sorted by event time the subtraction gives plus fifty litres and matches the meter; sorted by arrival time the pair inverts and gives minus fifty litres, followed by a plus one hundred litre compensating spike."></p>
+<p><em>Figure 3 — The same two readings, the same arithmetic, two different clocks. Only the ordering changed.</em></p>
 <p>Work it through. Reading A is measured at 10:00:01 with counter 100,000. Reading B is measured at 10:01:02 with counter 100,050. B takes a fast path through the network and lands at 10:01:03; A is delayed and lands at 10:01:10.</p>
 <p>Sorted by arrival, the stored sequence is <code>100,050</code> then <code>100,000</code>, and the subtraction gives <code>100,000 − 100,050 = −50 L</code>. The next reading along, 100,100, then produces <code>100,100 − 100,000 = +100 L</code>.</p>
 <p>That is the exact signature we had been staring at: a negative dip followed by a spike of roughly double the magnitude. The meter never reported negative water. Our sort order manufactured it, and the spike was simply the pipeline paying back the litres it had briefly borrowed.</p>
@@ -149,67 +95,50 @@ end.compact
 <p>When every message takes roughly the same time to travel from meter to server, arrival order and measurement order are the same sequence. Using the wrong clock produces the right answer, consistently, for as long as that holds. The bug needed <strong>variance</strong> in latency, not latency itself. A uniformly slow network would have been perfectly safe.</p>
 <p><strong>For engineers:</strong> the trigger here was variance in the gap between two clocks&#39; orderings, not the size of that gap — a correctness invariant that depends on a statistical property of the environment rather than a worst-case bound is not really an invariant at all.</p>
 <p>Two things eroded that. Density grew to around sixty meters behind a single gateway, which meant bursts of near-simultaneous publishes competing for one uplink. And the broker was running at QoS 2, which makes every publish a four-step handshake.</p>
-<figure>
-<img src="diagrams/04-qos-handshake.png" alt="Two vertical stacks comparing a QoS 2 publish handshake of four steps and two round trips against a QoS 0 publish of a single step and zero round trips, both happening at the moment sixty meters behind one gateway are competing for the same uplink.">
-<figcaption>Figure 4 — QoS 2 spends two full round trips proving delivery. Neither round trip says anything about order.</figcaption>
-</figure>
-<blockquote>
-<p><strong>DELIVERY IS NOT ORDERING</strong></p>
-<p>QoS 2 guarantees a message arrives exactly once. It promises nothing about the order in which independently published messages are processed — and the handshake providing that guarantee was itself inflating the latency variance that broke our ordering assumption.</p>
-</blockquote>
+<p><img src="https://a-ryan-1.github.io/my-blogs/water-that-flowed-backwards/diagrams/04-qos-handshake.png" alt="Two vertical stacks comparing a QoS 2 publish handshake of four steps and two round trips against a QoS 0 publish of a single step and zero round trips, both happening at the moment sixty meters behind one gateway are competing for the same uplink."></p>
+<p><em>Figure 4 — QoS 2 spends two full round trips proving delivery. Neither round trip says anything about order.</em></p>
+<blockquote><p><strong>DELIVERY IS NOT ORDERING</strong><br>QoS 2 guarantees a message arrives exactly once. It promises nothing about the order in which independently published messages are processed — and the handshake providing that guarantee was itself inflating the latency variance that broke our ordering assumption.</p></blockquote>
 <p>Which finally answers the question that had protected the hardware theory for so long. The affected flats were the ones on unstable links, where jitter was large enough to reorder arrivals relative to measurements. The correlation with physical location was real all along. It was a correlation with the trigger, never with the cause.</p>
 <h2>Three changes, one root cause</h2>
 <p>The fix bundled three changes, and it is worth being precise about which one actually closed the bug, because they get conflated constantly.</p>
 <p><strong>QoS 2 → 0</strong>, on publish and all four subscribes. What it addressed: handshake overhead and the latency variance it created. Dropping QoS from 2 to 0 removed the round trips and cut broker load meaningfully. It also reduced the variance that had been triggering the reordering, which made the symptom <em>less frequent</em>. It did not make it impossible.</p>
 <p><strong>Preserve the device timestamp</strong>, instead of overwriting it. What it addressed: event ordering, the actual defect. This is the one line that closes the bug, on its own, independent of everything else in the release.</p>
 <p><strong>Add a <code>received_at</code> column.</strong> What it addressed: observability. It makes the problem measurable, which is not the same as making it disappear.</p>
-<blockquote>
-<p><strong>Two of these changes are true, real, and not the fix.</strong></p>
-</blockquote>
-<figure>
-<img src="diagrams/05-three-changes.png" alt="Three cards, one per change, each showing what it addressed and a verdict badge for whether it was the fix. QoS 2 to 0 is marked not the fix, throughput only. Preserving the device timestamp is marked yes, the root cause. Adding received_at is marked not the fix, observability only.">
-<figcaption>Figure 5 — Only the middle card is the fix. The other two are real, and neither one would have closed the bug alone.</figcaption>
-</figure>
+<blockquote><p><strong>Two of these changes are true, real, and not the fix.</strong></p></blockquote>
+<p><img src="https://a-ryan-1.github.io/my-blogs/water-that-flowed-backwards/diagrams/05-three-changes.png" alt="Three cards, one per change, each showing what it addressed and a verdict badge for whether it was the fix. QoS 2 to 0 is marked not the fix, throughput only. Preserving the device timestamp is marked yes, the root cause. Adding received_at is marked not the fix, observability only."></p>
+<p><em>Figure 5 — Only the middle card is the fix. The other two are real, and neither one would have closed the bug alone.</em></p>
 <p>Shipping only the QoS change would have been the worst available outcome — it is the equivalent of calling in extra staff to shorten a checkout queue while the register is still handing back the wrong change: faster, and still wrong. A convincing improvement, a live correctness bug still in place, and evidence now pointing firmly away from the real cause.</p>
 <p>The third change is the one I would fight hardest to keep. Storing both clocks costs exactly one column:</p>
-<pre><code class="language-go">// before — one clock, and not the useful one
+<pre>// before — one clock, and not the useful one
 colNames := append([]string{
     &quot;thing_key&quot;, &quot;time_stamp&quot;, &quot;offset_value&quot;,
 }, dataFields...)
-
+ 
 // after — event time and arrival time, side by side
 colNames := append([]string{
     &quot;thing_key&quot;, &quot;time_stamp&quot;, &quot;offset_value&quot;, &quot;received_at&quot;,
-}, dataFields...)
-</code></pre>
+}, dataFields...)</pre>
 <p>The migration walks every template-backed hypertable and adds the column idempotently, so existing tables and future ones converge on the same shape:</p>
-<pre><code class="language-sql">ALTER TABLE &lt;each_template_table&gt;
+<pre>ALTER TABLE &lt;each_template_table&gt;
   ADD COLUMN IF NOT EXISTS received_at TIMESTAMPTZ
-  DEFAULT NOW();
-</code></pre>
+  DEFAULT NOW();</pre>
 <p><code>received_at − time_stamp</code> is now a directly queryable quantity: which gateways reorder, by how much, and how late a reading can realistically arrive. Before this, that delay was not merely unmonitored, it was <em>unrecoverable</em> — the only record of event time had been overwritten in memory before the row was ever written. The evidence was being discarded at the very edge of the system, before anyone downstream could look at it, and that is what made this so hard to see.</p>
 <h2>The guard that re-created the bug</h2>
 <p>The fix did not simply trust the device. Embedded clocks drift, reset, and occasionally report times years away from reality, so the same change added a validation band around the device timestamp:</p>
-<pre><code class="language-go">diff := int64(serverTime) - int64(deviceTime)
+<pre>diff := int64(serverTime) - int64(deviceTime)
 if diff &lt; 0 { diff = -diff }
-
+ 
 if diff &gt; 1800 {                    // &gt;30 min out of sync
     thingsPayload.TimeStamp = serverTime    // ← and there it is
-}
-</code></pre>
+}</pre>
 <p>This is the obvious, responsible design: use event time when it is credible, fall back to server time when it isn&#39;t. I would have written the same thing. It survived review for the same reason the sort did — in isolation, it reads as prudent.</p>
 <p>Three months later it was deleted in its entirety.</p>
 <p>It is the software equivalent of a smoke detector that, once its battery dies, quietly starts pumping smoke back into the room instead of staying silent.</p>
-<figure>
-<img src="diagrams/06-drift-guard.png" alt="Two cards comparing the drift guard&#39;s intent against its effect. The intent card describes guarding against missing or drifted device clocks. The effect card explains that falling back writes arrival time, that a drifted clock stays drifted so nearly every reading takes the fallback, and that the down spikes returned.">
-<figcaption>Figure 6 — The fallback wrote server time. That is the original defect, scoped down to the readings the guard was built to protect.</figcaption>
-</figure>
+<p><img src="https://a-ryan-1.github.io/my-blogs/water-that-flowed-backwards/diagrams/06-drift-guard.png" alt="Two cards comparing the drift guard&#39;s intent against its effect. The intent card describes guarding against missing or drifted device clocks. The effect card explains that falling back writes arrival time, that a drifted clock stays drifted so nearly every reading takes the fallback, and that the down spikes returned."></p>
+<p><em>Figure 6 — The fallback wrote server time. That is the original defect, scoped down to the readings the guard was built to protect.</em></p>
 <p>Look closely at what the fallback actually does. When a device&#39;s clock is more than thirty minutes off, the guard discards the device timestamp and writes <code>serverTime</code> instead. That is the original bug, verbatim, applied to a subset of readings.</p>
 <p>And it is the worst possible subset. A meter whose clock has drifted is <em>persistently</em> drifted, so it fails the check on nearly every reading — meaning that meter&#39;s data gets arrival-time ordering while its neighbours get event time. A device drifting across the thirty-minute boundary is worse still, flipping between the two clocks mid-stream and interleaving both into the same column before the same sort. The result was down spikes: the exact symptom the fix had been written to eliminate.</p>
-<blockquote>
-<p><strong>THE FALLBACK WAS THE BUG</strong></p>
-<p>Fallback paths get the least review attention and the thinnest test coverage, precisely because they are meant to be rare. Rare is not the same as harmless. Ask what a fallback <em>does</em>, not just when it fires.</p>
-</blockquote>
+<blockquote><p><strong>THE FALLBACK WAS THE BUG</strong><br>Fallback paths get the least review attention and the thinnest test coverage, precisely because they are meant to be rare. Rare is not the same as harmless. Ask what a fallback <em>does</em>, not just when it fires.</p></blockquote>
 <p>Nobody caught it in review, including me. You only see it when you notice that &quot;fall back to server time&quot; and &quot;the root cause&quot; are the same sentence.</p>
 <p>So the guard came out. The meter&#39;s own timestamp is now written exactly as it arrives, <code>received_at</code> records when we saw it, and the graphs have been straight since.</p>
 <h2>What transfers</h2>
@@ -222,16 +151,8 @@ if diff &gt; 1800 {                    // &gt;30 min out of sync
 </ul>
 <p>Reviewing a function tells you whether it does what it says. It does not tell you whether what it says is the right thing to do with the data it is actually handed.</p>
 <p>The most useful question in the whole investigation was never <em>what is broken</em>. It was:</p>
-<blockquote>
-<p><strong>What observation would prove our current explanation wrong?</strong></p>
-</blockquote>
+<blockquote><p><strong>What observation would prove our current explanation wrong?</strong></p></blockquote>
 <p>For the hardware theory, the answer had been sitting in every single packet we received — in a field we overwrote before anyone thought to look at it.</p>
-
-<!-- body:end -->
-</article>
-<div class="wrap"><p class="byline sans muted">Aryan Deshmukh · <time datetime="2026-09-29">29 September 2026</time> · 12 min read · distributed-systems, iot, mqtt, golang, debugging</p></div>
-<footer class="site-footer sans muted"><div class="wrap">
-<a href="../">← All posts</a><a href="https://github.com/A-RYAN-1">GitHub</a><a href="https://www.linkedin.com/in/aryan-deshmukh-793840259/">LinkedIn</a><a href="../feed.xml">RSS</a>
-</div></footer>
+</main>
 </body>
 </html>
