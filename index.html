@@ -4,21 +4,41 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Aryan Deshmukh — Blog</title>
+<meta name="description" content="Engineering stories: real production bugs and the systems behind them.">
+<link rel="alternate" type="application/rss+xml" title="Aryan Deshmukh — Blog" href="https://a-ryan-1.github.io/my-blogs/feed.xml">
 <style>
-  :root { --fg: #1a1a1a; --muted: #5f5f5f; --bg: #fff; }
-  @media (prefers-color-scheme: dark) { :root { --fg: #e8e6e1; --muted: #a09d96; --bg: #161616; } }
-  body { margin: 0; background: var(--bg); color: var(--fg); font: 18px/1.6 Georgia, serif; }
-  main { max-width: 700px; margin: 0 auto; padding: 48px 16px; }
-  h1 { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
-  li { margin-bottom: 1.4em; } a { color: inherit; font-weight: bold; } p { color: var(--muted); margin: .2em 0 0; }
+  :root { --fg: #1a1a1a; --muted: #5f5f5f; --bg: #fff; --code: #f4f4f2; --rule: #e4e4e0; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e8e6e1; --muted: #a09d96; --bg: #161616; --code: #232322; --rule: #333; }
+  }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 19px/1.7 Georgia, "Times New Roman", serif; }
+  .wrap { max-width: 700px; margin: 0 auto; padding: 0 16px; }
+  h1, h2, h3, .sans { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; line-height: 1.25; }
+  a { color: inherit; }
+  .muted { color: var(--muted); }
+  .site-footer { border-top: 1px solid var(--rule); margin-top: 48px; padding: 24px 0 64px; font-size: .8em; }
+  .site-footer a { margin-right: 1.2em; }
+  main { padding-top: 48px; }
+  .intro { margin-top: -.4em; }
+  ul { list-style: none; padding: 0; margin-top: 2.5em; }
+  li { margin-bottom: 2em; }
+  li a { font-weight: bold; font-size: 1.1em; }
+  li p { margin: .3em 0 0; }
+  .meta { font-size: .75em; }
 </style>
 </head>
 <body>
-<main>
+<main class="wrap">
 <h1>Aryan Deshmukh — Blog</h1>
+<p class="intro muted">Engineering stories: real production bugs and the systems behind them.</p>
 <ul>
-<li><a href="water-that-flowed-backwards/">The Water That Flowed Backwards</a><p>One line of Go turned perfectly valid water-meter readings into impossible graphs — and the safety net we built afterwards turned out to be the same bug in a smaller costume.</p></li>
+<li><a href="water-that-flowed-backwards/">The Water That Flowed Backwards</a>
+<p class="muted">One line of Go turned perfectly valid water-meter readings into impossible graphs — and the safety net we built afterwards turned out to be the same bug in a smaller costume.</p>
+<p class="meta sans muted">29 September 2026 · 12 min read</p></li>
 </ul>
 </main>
+<footer class="site-footer sans muted"><div class="wrap">
+<a href="https://github.com/A-RYAN-1">GitHub</a><a href="https://www.linkedin.com/in/aryan-deshmukh-793840259/">LinkedIn</a><a href="feed.xml">RSS</a>
+</div></footer>
 </body>
 </html>

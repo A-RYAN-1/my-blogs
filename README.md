@@ -3,7 +3,7 @@
 Engineering stories by **Aryan Deshmukh**: real production bugs and the systems behind them,
 told as a narrative with diagrams and the actual code.
 
-**Read online:** <https://a-ryan-1.github.io/my-blogs/>
+**Read online:** <https://a-ryan-1.github.io/my-blogs/> · **RSS:** <https://a-ryan-1.github.io/my-blogs/feed.xml>
 
 ## Posts
 
@@ -21,7 +21,11 @@ the original, and Medium and other platforms credit it as the source.
 ```
 my-blogs/
 ├── index.html                    ← site home: list of posts (generated)
-├── tools/build-post.js           ← builds a post page + refreshes the home page
+├── feed.xml                      ← RSS feed with full post content (generated)
+├── posts.json                    ← post list: dates, tags, reading time, dev.to ids
+├── site.json                     ← site title, profile links, analytics code
+├── tools/build-post.js           ← builds a post page, home page and feed
+├── tools/devto.js                ← cross-posts a post to dev.to as a draft
 └── <post-slug>/
     ├── index.html                ← the published page (generated)
     ├── post.md                   ← markdown source, also used for dev.to / Hashnode
@@ -33,6 +37,8 @@ my-blogs/
 - `*Figure N — …*` lines become image captions
 - tables become aligned plain text, because Medium has no tables
 - the page gets a canonical link, a description and a preview image
+- before building anything, the source goes through a leak scan for real names, hostnames,
+  emails and commit hashes, and the build stops on any finding, because this repo is public
 
 ## Publishing a new post
 
@@ -48,6 +54,12 @@ redeploys within a minute or two. Then:
 1. Open `https://a-ryan-1.github.io/my-blogs/<slug>/` and check it.
 2. Import it at <https://medium.com/p/import> and tidy the draft (pull quotes, image widths, tags).
 3. Publish.
+4. Optionally cross-post to dev.to: `node tools/devto.js <slug>` creates an unpublished draft
+   there with a canonical link back here (running it again updates the draft). It needs a dev.to
+   API key in `~/.config/my-blogs/devto_api_key`, kept outside the repo.
+
+Visitor stats use [GoatCounter](https://www.goatcounter.com): no cookies, free for personal
+sites. Put the site code in `site.json` → `goatcounter` and rebuild to turn it on.
 
 ## License
 
