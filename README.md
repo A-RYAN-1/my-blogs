@@ -1,17 +1,54 @@
 # my-blogs
 
-Engineering blog posts by Aryan Deshmukh, published at
-<https://a-ryan-1.github.io/my-blogs/>.
+Engineering stories by **Aryan Deshmukh**: real production bugs and the systems behind them,
+told as a narrative with diagrams and the actual code.
 
-| Post | Link |
-|---|---|
-| The Water That Flowed Backwards | [read](https://a-ryan-1.github.io/my-blogs/water-that-flowed-backwards/) |
+**Read online:** <https://a-ryan-1.github.io/my-blogs/>
 
-Each post folder has an `index.html` (the published page), the `post.md` source and its diagrams.
+## Posts
 
-To rebuild a post:
+| # | Post | Topics | Read |
+|---|---|---|---|
+| 1 | **The Water That Flowed Backwards**<br>One line of Go turned perfectly valid water-meter readings into impossible graphs. | distributed systems, IoT, MQTT, Go | [web](https://a-ryan-1.github.io/my-blogs/water-that-flowed-backwards/) · [markdown](water-that-flowed-backwards/post.md) |
+
+## How this repo works
+
+Posts are drafted elsewhere. This repo only holds the finished, published versions. GitHub Pages
+serves it straight from `main`, and each post page is kept deliberately plain so
+[Medium's importer](https://medium.com/p/import) can pull it in cleanly. The GitHub Pages copy is
+the original, and Medium and other platforms credit it as the source.
+
+```
+my-blogs/
+├── index.html                    ← site home: list of posts (generated)
+├── tools/build-post.js           ← builds a post page + refreshes the home page
+└── <post-slug>/
+    ├── index.html                ← the published page (generated)
+    ├── post.md                   ← markdown source, also used for dev.to / Hashnode
+    └── diagrams/*.png
+```
+
+`build-post.js` turns `post.md` into the page and makes it Medium-friendly along the way:
+- diagrams are published as PNG, because Medium cannot show SVG
+- `*Figure N — …*` lines become image captions
+- tables become aligned plain text, because Medium has no tables
+- the page gets a canonical link, a description and a preview image
+
+## Publishing a new post
 
 ```bash
-npm install
-node tools/build-post.js <source-post-folder> <slug>
+npm install                                            # first time only
+node tools/build-post.js "<source-post-folder>" <slug> # e.g. water-that-flowed-backwards
+git add -A && git commit -m 'Publish "<Title>"' && git push
 ```
+
+The source folder needs a `post.md` and a `diagrams/` folder of `.png` files. GitHub Pages
+redeploys within a minute or two. Then:
+
+1. Open `https://a-ryan-1.github.io/my-blogs/<slug>/` and check it.
+2. Import it at <https://medium.com/p/import> and tidy the draft (pull quotes, image widths, tags).
+3. Publish.
+
+## License
+
+Text and diagrams © Aryan Deshmukh. Please link back rather than republishing.
