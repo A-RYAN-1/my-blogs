@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex"><title>Paste test</title>
+<style>body{background:#fff;color:#111;font:19px/1.7 Georgia,serif;margin:0}main{max-width:700px;margin:0 auto;padding:32px 16px}
+pre{background:#f4f4f2;padding:12px;overflow-x:auto;font:14px/1.5 Menlo,monospace}img{max-width:100%}blockquote{border-left:3px solid #111;margin-left:0;padding-left:1em}
+figcaption{color:#666;font-size:.85em;text-align:center}</style></head>
+<body><main>
+<p><strong>VARIANT A</strong></p>
+<h2>What the meters actually report</h2>
+<p>A water meter on this system does not report consumption. It reports a cumulative pulse counter, like a car&#39;s odometer, which the backend converts into litres:</p>
+<pre>reading = (pulseh × 65536 + pulsel) × least_count + offset</pre>
+<p>
+<code>pulseh</code> and <code>pulsel</code> are the high and low halves of a 32-bit pulse count, <code>least_count</code> is the litres-per-pulse calibration stored against each sensor, and <code>offset</code> absorbs meter replacements and manual corrections.</p>
+<p>Consumption is never transmitted. It is always <em>derived</em>, by subtracting one reading from the one before it:</p>
+<pre>Time    Counter     Derived consumption
+-----   ---------   -------------------
+10:00   100,000 L   —
+10:01   100,050 L   50 L
+10:02   100,100 L   50 L</pre>
+<p>This is a deliberate and good design. A cumulative counter is self-healing: lose the 10:01 packet entirely and you still get the right total, because <code>100,100 − 100,000 = 100</code>. You lose resolution, not correctness. A meter that reported deltas instead — <code>+50</code>, <code>+50</code> — would lose fifty litres permanently to that same dropped packet.</p>
+<p>But the design carries a hard requirement, and it is easy to miss because nothing in the code ever states it.</p>
+<blockquote>
+<p>
+<strong>THE UNSTATED CONTRACT</strong>
+</p>
+<p>Subtracting two cumulative counters is only meaningful if they are in the order the meter produced them. Get the order wrong and a perfectly valid pair of readings yields an invalid answer.</p>
+</blockquote>
+<h2>The hypothesis that survived too long</h2>
+<p>Our reasoning went like this:</p>
+<blockquote>
+<p>If the software were broken, every meter would be broken. Only some meters are broken. Therefore the problem is not the software.</p>
+</blockquote>
+<p>Every step of that is sound except the premise buried in the first clause — that a software defect must affect all of its inputs uniformly. That is false for any bug whose trigger is environmental. A race condition depends on timing. An ordering bug depends on network jitter. Both will happily correlate with specific hardware, specific locations and specific network paths, producing a pattern that looks exactly like a hardware fault.</p>
+<blockquote>
+<p>
+<strong>We had a real correlation. We drew the wrong arrow from it.</strong>
+</p>
+</blockquote>
+<p>The affected flats genuinely did share something physical — we just assumed that shared property was the cause, when it was only the trigger.</p>
+<h2>Following the timestamp</h2>
+<p>What eventually broke the hypothesis was not a new observation. It was an old one nobody had looked at: the meter packet already told us when the measurement was taken. The payload contract had carried that field since the beginning.</p>
+<pre>type ThingsPayload struct {
+    Data      map[string]interface{} `json:&quot;data&quot;`
+    ThingKey  string                 `json:&quot;thing_key&quot;`
+    // the meter&#39;s own clock, e.g. 1615031018
+    TimeStamp uint64                 `json:&quot;time_stamp&quot;`
+}</pre>
+<p>So we followed that field from the meter all the way to the graph.</p>
+<figure>
+<img src="https://a-ryan-1.github.io/my-blogs/water-that-flowed-backwards/diagrams/01-pipeline.png" alt="The ingestion pipeline from water meter through gateway, MQTT broker, Go event handler, hypertable and Rails consumption service, with a green track showing event time alive for the first half and a red track showing arrival time substituted from the event handler onward.">
+<figcaption>Figure 1 — Event time is born at the meter and dies four stages later. Everything downstream runs on whichever clock survives that point.</figcaption>
+</figure>
+<p>It did not survive. Inside the MQTT event handler, immediately after unmarshalling and before anything else touched the payload:</p>
+<pre>err := json.Unmarshal(m.Payload(), &amp;thingsPayload)
+if err != nil { /* reject */ }
+
+// the device clock, discarded before anything reads it
+thingsPayload.TimeStamp = uint64(time.Now().Unix())
+
+err = thingsPayload.Validate()</pre>
+<p>
+<strong>For engineers:</strong> subtracting values from a monotonic counter is only valid if you preserve the counter&#39;s own total order. Swap in any other order relation — arrival time, insertion time, whatever a downstream system happens to use — and correctness now depends entirely on how closely that substitute order tracks the real one.</p>
+<blockquote>
+<p>
+<strong>We replaced the device&#39;s clock with our own, before anyone thought to ask which one was right.</strong>
+</p>
+</blockquote>
+<p>There was a second casualty in those three lines, and it went unnoticed far longer. The payload validator rejects a missing timestamp:</p>
+<pre>if p.TimeStamp == 0 {
+    return apperrors.ErrNoTimeStamp
+}</pre>
+<p>But the overwrite ran <em>before</em> <code>Validate()</code>. By the time that check executed, <code>TimeStamp</code> was always a fresh, non-zero server clock value.</p>
+<figure>
+<img src="https://a-ryan-1.github.io/my-blogs/water-that-flowed-backwards/diagrams/02-dead-guard.png" alt="Three steps of the event handler shown in order: unmarshal the payload, overwrite the timestamp with the server clock, then call Validate. A panel beside the third step explains that TimeStamp is now always non-zero, so the guard against a missing device clock can never see the condition it was written to catch.">
+<figcaption>Figure 2 — A guard against a missing device clock, made structurally unreachable by the line written two before it.</figcaption>
+</figure>
+<p>The guard could never fire. We had a validation rule for device clocks that had been unreachable since the day it was written — and because it never fired, it never told us anything was wrong.</p>
+<hr>
+<p><strong>VARIANT B</strong></p>
+<h2>What the meters actually report</h2><p>A water meter on this system does not report consumption. It reports a cumulative pulse counter, like a car&#39;s odometer, which the backend converts into litres:</p><pre data-lang="text">reading = (pulseh × 65536 + pulsel) × least_count + offset</pre><p><code>pulseh</code> and <code>pulsel</code> are the high and low halves of a 32-bit pulse count, <code>least_count</code> is the litres-per-pulse calibration stored against each sensor, and <code>offset</code> absorbs meter replacements and manual corrections.</p><p>Consumption is never transmitted. It is always <em>derived</em>, by subtracting one reading from the one before it:</p><pre data-lang="text">Time    Counter     Derived consumption<br>-----   ---------   -------------------<br>10:00   100,000 L   —<br>10:01   100,050 L   50 L<br>10:02   100,100 L   50 L</pre><p>This is a deliberate and good design. A cumulative counter is self-healing: lose the 10:01 packet entirely and you still get the right total, because <code>100,100 − 100,000 = 100</code>. You lose resolution, not correctness. A meter that reported deltas instead — <code>+50</code>, <code>+50</code> — would lose fifty litres permanently to that same dropped packet.</p><p>But the design carries a hard requirement, and it is easy to miss because nothing in the code ever states it.</p><blockquote><strong>THE UNSTATED CONTRACT</strong><br>Subtracting two cumulative counters is only meaningful if they are in the order the meter produced them. Get the order wrong and a perfectly valid pair of readings yields an invalid answer.</blockquote><h2>The hypothesis that survived too long</h2><p>Our reasoning went like this:</p><blockquote>If the software were broken, every meter would be broken. Only some meters are broken. Therefore the problem is not the software.</blockquote><p>Every step of that is sound except the premise buried in the first clause — that a software defect must affect all of its inputs uniformly. That is false for any bug whose trigger is environmental. A race condition depends on timing. An ordering bug depends on network jitter. Both will happily correlate with specific hardware, specific locations and specific network paths, producing a pattern that looks exactly like a hardware fault.</p><blockquote><strong>We had a real correlation. We drew the wrong arrow from it.</strong></blockquote><p>The affected flats genuinely did share something physical — we just assumed that shared property was the cause, when it was only the trigger.</p><h2>Following the timestamp</h2><p>What eventually broke the hypothesis was not a new observation. It was an old one nobody had looked at: the meter packet already told us when the measurement was taken. The payload contract had carried that field since the beginning.</p><pre data-lang="go">type ThingsPayload struct {<br>    Data      map[string]interface{} `json:&quot;data&quot;`<br>    ThingKey  string                 `json:&quot;thing_key&quot;`<br>    // the meter&#39;s own clock, e.g. 1615031018<br>    TimeStamp uint64                 `json:&quot;time_stamp&quot;`<br>}</pre><p>So we followed that field from the meter all the way to the graph.</p><figure><img src="https://a-ryan-1.github.io/my-blogs/water-that-flowed-backwards/diagrams/01-pipeline.png" alt="The ingestion pipeline from water meter through gateway, MQTT broker, Go event handler, hypertable and Rails consumption service, with a green track showing event time alive for the first half and a red track showing arrival time substituted from the event handler onward."><figcaption>Figure 1 — Event time is born at the meter and dies four stages later. Everything downstream runs on whichever clock survives that point.</figcaption></figure><p>It did not survive. Inside the MQTT event handler, immediately after unmarshalling and before anything else touched the payload:</p><pre data-lang="go">err := json.Unmarshal(m.Payload(), &amp;thingsPayload)<br>if err != nil { /* reject */ }<br><br>// the device clock, discarded before anything reads it<br>thingsPayload.TimeStamp = uint64(time.Now().Unix())<br><br>err = thingsPayload.Validate()</pre><p><strong>For engineers:</strong> subtracting values from a monotonic counter is only valid if you preserve the counter&#39;s own total order. Swap in any other order relation — arrival time, insertion time, whatever a downstream system happens to use — and correctness now depends entirely on how closely that substitute order tracks the real one.</p><blockquote><strong>We replaced the device&#39;s clock with our own, before anyone thought to ask which one was right.</strong></blockquote><p>There was a second casualty in those three lines, and it went unnoticed far longer. The payload validator rejects a missing timestamp:</p><pre data-lang="go">if p.TimeStamp == 0 {<br>    return apperrors.ErrNoTimeStamp<br>}</pre><p>But the overwrite ran <em>before</em> <code>Validate()</code>. By the time that check executed, <code>TimeStamp</code> was always a fresh, non-zero server clock value.</p><figure><img src="https://a-ryan-1.github.io/my-blogs/water-that-flowed-backwards/diagrams/02-dead-guard.png" alt="Three steps of the event handler shown in order: unmarshal the payload, overwrite the timestamp with the server clock, then call Validate. A panel beside the third step explains that TimeStamp is now always non-zero, so the guard against a missing device clock can never see the condition it was written to catch."><figcaption>Figure 2 — A guard against a missing device clock, made structurally unreachable by the line written two before it.</figcaption></figure><p>The guard could never fire. We had a validation rule for device clocks that had been unreachable since the day it was written — and because it never fired, it never told us anything was wrong.</p>
+</main></body></html>
