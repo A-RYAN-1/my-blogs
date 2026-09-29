@@ -14,9 +14,8 @@ told as a narrative with diagrams and the actual code.
 ## How this repo works
 
 Posts are drafted elsewhere. This repo only holds the finished, published versions. GitHub Pages
-serves it straight from `main`, and each post page is kept deliberately plain so
-[Medium's importer](https://medium.com/p/import) can pull it in cleanly. The GitHub Pages copy is
-the original, and Medium and other platforms credit it as the source.
+serves it straight from `main`. The GitHub Pages copy is the original; Medium and dev.to copies
+point back to it as the canonical source.
 
 ```
 my-blogs/
@@ -28,15 +27,17 @@ my-blogs/
 ├── tools/devto.js                ← cross-posts a post to dev.to as a draft
 └── <post-slug>/
     ├── index.html                ← the published page (generated)
+    ├── paste.html                ← the same story formatted for pasting into Medium (generated)
     ├── post.md                   ← markdown source, also used for dev.to / Hashnode
     └── diagrams/*.png
 ```
 
-`build-post.js` turns `post.md` into the page and makes it Medium-friendly along the way:
+`build-post.js` turns `post.md` into the page and its paste version:
 - diagrams are published as PNG, because Medium cannot show SVG
 - `*Figure N — …*` lines become image captions
 - tables become aligned plain text, because Medium has no tables
 - the page gets a canonical link, a description and a preview image
+- `paste.html` avoids the HTML that Medium's editor mangles on paste (see the comment in the script)
 - before building anything, the source goes through a leak scan for real names, hostnames,
   emails and commit hashes, and the build stops on any finding, because this repo is public
 
@@ -52,8 +53,11 @@ The source folder needs a `post.md` and a `diagrams/` folder of `.png` files. Gi
 redeploys within a minute or two. Then:
 
 1. Open `https://a-ryan-1.github.io/my-blogs/<slug>/` and check it.
-2. Import it at <https://medium.com/p/import> and tidy the draft (pull quotes, image widths, tags).
-3. Publish.
+2. Open `<slug>/paste.html`, press Ctrl+A and Ctrl+C, and paste into a new story at
+   <https://medium.com/new-story>. (Medium's importer was tried and mangles code and spacing.)
+3. Tidy the draft: move each italic "Figure N" line into its image's caption, set the subtitle,
+   pull quotes, image widths and tags, and set the canonical link (Story settings → Advanced) to
+   the post URL. Then publish.
 4. Optionally cross-post to dev.to: `node tools/devto.js <slug>` creates an unpublished draft
    there with a canonical link back here (running it again updates the draft). It needs a dev.to
    API key in `~/.config/my-blogs/devto_api_key`, kept outside the repo.
