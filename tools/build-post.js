@@ -99,6 +99,16 @@ body = body.replace(
 );
 body = body.replace(/src="([^"]+)\.svg"/g, 'src="$1.png"');
 
+// Medium's importer turns every newline between block elements into an empty block, ignores
+// newlines inside <pre>, and splits multi-paragraph quotes. So the body is written the way
+// Medium's own export writes it: code lines joined with <br> (no trailing newline, no inner
+// <code>), one paragraph per quote, and no whitespace between block tags.
+body = body.replace(/<pre><code(?: class="language-([\w-]+)")?>([\s\S]*?)<\/code><\/pre>/g,
+  (_, lang, code) => `<pre${lang ? ` data-lang="${lang}"` : ''}>${code.replace(/\n$/, '').replace(/\n/g, '<br>')}</pre>`);
+body = body.replace(/<blockquote>([\s\S]*?)<\/blockquote>/g,
+  (_, inner) => `<blockquote>${inner.trim().replace(/^<p>|<\/p>$/g, '').replace(/<\/p>\s*<p>/g, '<br>')}</blockquote>`);
+body = body.replace(/>\s*\n\s*</g, '><').trim();
+
 const url = `${site.url}/${slug}/`;
 const firstFigure = body.match(/src="(diagrams\/01-[^"]+\.png)"/);
 const ogImage = firstFigure ? `${url}${firstFigure[1]}` : '';
@@ -172,7 +182,17 @@ ${body}
 <div class="wrap"><p class="byline sans muted">${esc(site.author)} · <time datetime="${entry.date}">${fmtDate(entry.date)}</time> · ${minutes} min read${tags.length ? ` · ${tags.map(esc).join(', ')}` : ''}</p></div>
 ${footer(false)}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-<script>hljs.highlightAll();</script>
+<script>
+// Code is stored Medium-style (<pre> with <br> lines); rebuild <code> for highlighting on the site only.
+document.querySelectorAll('pre').forEach((pre) => {
+  const code = document.createElement('code');
+  code.textContent = pre.innerHTML.replace(/<br\s*\/?>/g, '\n').replace(/<[^>]+>/g, '')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+  if (pre.dataset.lang) code.className = 'language-' + pre.dataset.lang;
+  pre.replaceChildren(code);
+  hljs.highlightElement(code);
+});
+</script>
 </body>
 </html>
 `;
