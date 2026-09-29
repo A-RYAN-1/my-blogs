@@ -3,7 +3,7 @@
     "slug": "water-that-flowed-backwards",
     "date": "2026-09-29",
     "title": "The Water That Flowed Backwards",
-    "dek": "One line of Go turned perfectly valid water-meter readings into impossible graphs — and the safety net we built afterwards turned out to be the same bug in a smaller costume.",
+    "dek": "One line of Go turned perfectly valid water-meter readings into impossible graphs, and the safety net we built afterwards turned out to be the same bug in a smaller costume.",
     "tags": [
       "distributed-systems",
       "iot",

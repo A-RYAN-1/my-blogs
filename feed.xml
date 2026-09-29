@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom">
 <channel>
-<title>Aryan Deshmukh — Blog</title>
+<title>Aryan Deshmukh's Blog</title>
 <link>https://a-ryan-1.github.io/my-blogs/</link>
 <description>Engineering stories: real production bugs and the systems behind them.</description>
 <language>en</language>
@@ -11,16 +11,16 @@
 <link>https://a-ryan-1.github.io/my-blogs/water-that-flowed-backwards/</link>
 <guid isPermaLink="true">https://a-ryan-1.github.io/my-blogs/water-that-flowed-backwards/</guid>
 <pubDate>Tue, 29 Sep 2026 00:00:00 GMT</pubDate>
-<description>One line of Go turned perfectly valid water-meter readings into impossible graphs — and the safety net we built afterwards turned out to be the same bug in a smaller costume.</description>
+<description>One line of Go turned perfectly valid water-meter readings into impossible graphs, and the safety net we built afterwards turned out to be the same bug in a smaller costume.</description>
 <category>distributed-systems</category>
 <category>iot</category>
 <category>mqtt</category>
 <category>golang</category>
 <category>debugging</category>
 <content:encoded><![CDATA[
-<p>You open the dashboard for a flat that&#39;s been flagged. The consumption graph dips below zero — the resident, apparently, has un-drunk fifty litres of water — then spikes back up to roughly double the dip, and carries on as if nothing happened.</p>
+<p>You open the dashboard for a flat that&#39;s been flagged. The consumption graph dips below zero (the resident, apparently, has un-drunk fifty litres of water), then spikes back up to roughly double the dip, and carries on as if nothing happened.</p>
 <p>You&#39;ve seen this shape before. A flaky meter, you think. Junk data. Move on.</p>
-<p>That&#39;s exactly what we told ourselves, on a handful of flats, more than once — because the alternative, that our own ingestion pipeline was quietly corrupting good data, seemed far less likely than a flaky meter.</p>
+<p>That&#39;s exactly what we told ourselves, on a handful of flats, more than once, because the alternative, that our own ingestion pipeline was quietly corrupting good data, seemed far less likely than a flaky meter.</p>
 <p>The part that kept the hardware theory alive was the distribution. Only <em>some</em> flats were affected. Their neighbours sat on the same gateway, ran the same firmware, published through the same broker, and were written by the same Go binary into the same table. Those were perfectly fine.</p>
 <p>That asymmetry felt like proof. It wasn&#39;t. It was the clue.</p>
 <h2>What the meters actually report</h2>
@@ -31,11 +31,11 @@
 <p>Consumption is never transmitted. It is always <em>derived</em>, by subtracting one reading from the one before it:</p>
 <pre><code class="language-text">Time    Counter     Derived consumption
 -----   ---------   -------------------
-10:00   100,000 L   —
+10:00   100,000 L   n/a
 10:01   100,050 L   50 L
 10:02   100,100 L   50 L
 </code></pre>
-<p>This is a deliberate and good design. A cumulative counter is self-healing: lose the 10:01 packet entirely and you still get the right total, because <code>100,100 − 100,000 = 100</code>. You lose resolution, not correctness. A meter that reported deltas instead — <code>+50</code>, <code>+50</code> — would lose fifty litres permanently to that same dropped packet.</p>
+<p>This is a deliberate and good design. A cumulative counter is self-healing: lose the 10:01 packet entirely and you still get the right total, because <code>100,100 − 100,000 = 100</code>. You lose resolution, not correctness. A meter that reported deltas instead (<code>+50</code>, <code>+50</code>) would lose fifty litres permanently to that same dropped packet.</p>
 <p>But the design carries a hard requirement, and it is easy to miss because nothing in the code ever states it.</p>
 <blockquote>
 <p><strong>THE UNSTATED CONTRACT</strong></p>
@@ -46,11 +46,11 @@
 <blockquote>
 <p>If the software were broken, every meter would be broken. Only some meters are broken. Therefore the problem is not the software.</p>
 </blockquote>
-<p>Every step of that is sound except the premise buried in the first clause — that a software defect must affect all of its inputs uniformly. That is false for any bug whose trigger is environmental. A race condition depends on timing. An ordering bug depends on network jitter. Both will happily correlate with specific hardware, specific locations and specific network paths, producing a pattern that looks exactly like a hardware fault.</p>
+<p>Every step of that is sound except the premise buried in the first clause: that a software defect must affect all of its inputs uniformly. That is false for any bug whose trigger is environmental. A race condition depends on timing. An ordering bug depends on network jitter. Both will happily correlate with specific hardware, specific locations and specific network paths, producing a pattern that looks exactly like a hardware fault.</p>
 <blockquote>
 <p><strong>We had a real correlation. We drew the wrong arrow from it.</strong></p>
 </blockquote>
-<p>The affected flats genuinely did share something physical — we just assumed that shared property was the cause, when it was only the trigger.</p>
+<p>The affected flats genuinely did share something physical. We just assumed that shared property was the cause, when it was only the trigger.</p>
 <h2>Following the timestamp</h2>
 <p>What eventually broke the hypothesis was not a new observation. It was an old one nobody had looked at: the meter packet already told us when the measurement was taken. The payload contract had carried that field since the beginning.</p>
 <pre><code class="language-go">type ThingsPayload struct {
@@ -63,7 +63,7 @@
 <p>So we followed that field from the meter all the way to the graph.</p>
 <figure>
 <img src="https://a-ryan-1.github.io/my-blogs/water-that-flowed-backwards/diagrams/01-pipeline.png" alt="The ingestion pipeline from water meter through gateway, MQTT broker, Go event handler, hypertable and Rails consumption service, with a green track showing event time alive for the first half and a red track showing arrival time substituted from the event handler onward.">
-<figcaption>Figure 1 — Event time is born at the meter and dies four stages later. Everything downstream runs on whichever clock survives that point.</figcaption>
+<figcaption>Figure 1. Event time is born at the meter and dies four stages later. Everything downstream runs on whichever clock survives that point.</figcaption>
 </figure>
 <p>It did not survive. Inside the MQTT event handler, immediately after unmarshalling and before anything else touched the payload:</p>
 <pre><code class="language-go">err := json.Unmarshal(m.Payload(), &amp;thingsPayload)
@@ -74,7 +74,7 @@ thingsPayload.TimeStamp = uint64(time.Now().Unix())
 
 err = thingsPayload.Validate()
 </code></pre>
-<p><strong>For engineers:</strong> subtracting values from a monotonic counter is only valid if you preserve the counter&#39;s own total order. Swap in any other order relation — arrival time, insertion time, whatever a downstream system happens to use — and correctness now depends entirely on how closely that substitute order tracks the real one.</p>
+<p><strong>For engineers:</strong> subtracting values from a monotonic counter is only valid if you preserve the counter&#39;s own total order. Swap in any other order relation (arrival time, insertion time, whatever a downstream system happens to use) and correctness now depends entirely on how closely that substitute order tracks the real one.</p>
 <blockquote>
 <p><strong>We replaced the device&#39;s clock with our own, before anyone thought to ask which one was right.</strong></p>
 </blockquote>
@@ -86,9 +86,9 @@ err = thingsPayload.Validate()
 <p>But the overwrite ran <em>before</em> <code>Validate()</code>. By the time that check executed, <code>TimeStamp</code> was always a fresh, non-zero server clock value.</p>
 <figure>
 <img src="https://a-ryan-1.github.io/my-blogs/water-that-flowed-backwards/diagrams/02-dead-guard.png" alt="Three steps of the event handler shown in order: unmarshal the payload, overwrite the timestamp with the server clock, then call Validate. A panel beside the third step explains that TimeStamp is now always non-zero, so the guard against a missing device clock can never see the condition it was written to catch.">
-<figcaption>Figure 2 — A guard against a missing device clock, made structurally unreachable by the line written two before it.</figcaption>
+<figcaption>Figure 2. A guard against a missing device clock, made structurally unreachable by the line written two before it.</figcaption>
 </figure>
-<p>The guard could never fire. We had a validation rule for device clocks that had been unreachable since the day it was written — and because it never fired, it never told us anything was wrong.</p>
+<p>The guard could never fire. We had a validation rule for device clocks that had been unreachable since the day it was written, and because it never fired, it never told us anything was wrong.</p>
 <h2>Correct code, operating on the wrong clock</h2>
 <p>Here is the part I find genuinely instructive. The consumption calculation is not sloppy. It sorts before it subtracts:</p>
 <pre><code class="language-ruby"># refuse to trust row order: sort ascending by timestamp
@@ -101,30 +101,30 @@ readings.each_with_index.map do |reading, i|
 end.compact
 </code></pre>
 <p>That code is careful and defensive. It explicitly refuses to trust whatever order the rows came back in, sorts ascending, and only then walks consecutive pairs. Reviewed in isolation, you would approve it. I would approve it.</p>
-<p>It sorts by the timestamp column. And the timestamp column held arrival time. So the sort did precisely what it was told — ordered the readings by when our server happened to receive them, with total confidence — and handed that sequence to the subtraction.</p>
+<p>It sorts by the timestamp column. And the timestamp column held arrival time. So the sort did precisely what it was told. It ordered the readings by when our server happened to receive them, with total confidence, and handed that sequence to the subtraction.</p>
 <p>It is the same mistake a sorting clerk makes reading a stack of registered-mail receipts instead of the letters inside them: the receipt proves a letter arrived, in the order it was stamped at the counter, and says nothing about which letter was written first.</p>
 <blockquote>
 <p><strong>The sort did precisely what it was told. It just wasn&#39;t told the truth about the clock.</strong></p>
 </blockquote>
 <figure>
 <img src="https://a-ryan-1.github.io/my-blogs/water-that-flowed-backwards/diagrams/03-ordering.png" alt="Two panels comparing the same pair of readings. Sorted by event time the subtraction gives plus fifty litres and matches the meter; sorted by arrival time the pair inverts and gives minus fifty litres, followed by a plus one hundred litre compensating spike.">
-<figcaption>Figure 3 — The same two readings, the same arithmetic, two different clocks. Only the ordering changed.</figcaption>
+<figcaption>Figure 3. The same two readings, the same arithmetic, two different clocks. Only the ordering changed.</figcaption>
 </figure>
 <p>Work it through. Reading A is measured at 10:00:01 with counter 100,000. Reading B is measured at 10:01:02 with counter 100,050. B takes a fast path through the network and lands at 10:01:03; A is delayed and lands at 10:01:10.</p>
 <p>Sorted by arrival, the stored sequence is <code>100,050</code> then <code>100,000</code>, and the subtraction gives <code>100,000 − 100,050 = −50 L</code>. The next reading along, 100,100, then produces <code>100,100 − 100,000 = +100 L</code>.</p>
 <p>That is the exact signature we had been staring at: a negative dip followed by a spike of roughly double the magnitude. The meter never reported negative water. Our sort order manufactured it, and the spike was simply the pipeline paying back the litres it had briefly borrowed.</p>
 <h2>Why it worked for years</h2>
-<p>The line was wrong from the day it was written. It did not <em>become</em> wrong — the environment changed around it.</p>
+<p>The line was wrong from the day it was written. It did not <em>become</em> wrong. The environment changed around it.</p>
 <p>When every message takes roughly the same time to travel from meter to server, arrival order and measurement order are the same sequence. Using the wrong clock produces the right answer, consistently, for as long as that holds. The bug needed <strong>variance</strong> in latency, not latency itself. A uniformly slow network would have been perfectly safe.</p>
-<p><strong>For engineers:</strong> the trigger here was variance in the gap between two clocks&#39; orderings, not the size of that gap — a correctness invariant that depends on a statistical property of the environment rather than a worst-case bound is not really an invariant at all.</p>
+<p><strong>For engineers:</strong> the trigger here was variance in the gap between two clocks&#39; orderings, not the size of that gap. A correctness invariant that depends on a statistical property of the environment rather than a worst-case bound is not really an invariant at all.</p>
 <p>Two things eroded that. Density grew to around sixty meters behind a single gateway, which meant bursts of near-simultaneous publishes competing for one uplink. And the broker was running at QoS 2, which makes every publish a four-step handshake.</p>
 <figure>
 <img src="https://a-ryan-1.github.io/my-blogs/water-that-flowed-backwards/diagrams/04-qos-handshake.png" alt="Two vertical stacks comparing a QoS 2 publish handshake of four steps and two round trips against a QoS 0 publish of a single step and zero round trips, both happening at the moment sixty meters behind one gateway are competing for the same uplink.">
-<figcaption>Figure 4 — QoS 2 spends two full round trips proving delivery. Neither round trip says anything about order.</figcaption>
+<figcaption>Figure 4. QoS 2 spends two full round trips proving delivery. Neither round trip says anything about order.</figcaption>
 </figure>
 <blockquote>
 <p><strong>DELIVERY IS NOT ORDERING</strong></p>
-<p>QoS 2 guarantees a message arrives exactly once. It promises nothing about the order in which independently published messages are processed — and the handshake providing that guarantee was itself inflating the latency variance that broke our ordering assumption.</p>
+<p>QoS 2 guarantees a message arrives exactly once. It promises nothing about the order in which independently published messages are processed. And the handshake providing that guarantee was itself inflating the latency variance that broke our ordering assumption.</p>
 </blockquote>
 <p>Which finally answers the question that had protected the hardware theory for so long. The affected flats were the ones on unstable links, where jitter was large enough to reorder arrivals relative to measurements. The correlation with physical location was real all along. It was a correlation with the trigger, never with the cause.</p>
 <h2>Three changes, one root cause</h2>
@@ -137,16 +137,16 @@ end.compact
 </blockquote>
 <figure>
 <img src="https://a-ryan-1.github.io/my-blogs/water-that-flowed-backwards/diagrams/05-three-changes.png" alt="Three cards, one per change, each showing what it addressed and a verdict badge for whether it was the fix. QoS 2 to 0 is marked not the fix, throughput only. Preserving the device timestamp is marked yes, the root cause. Adding received_at is marked not the fix, observability only.">
-<figcaption>Figure 5 — Only the middle card is the fix. The other two are real, and neither one would have closed the bug alone.</figcaption>
+<figcaption>Figure 5. Only the middle card is the fix. The other two are real, and neither one would have closed the bug alone.</figcaption>
 </figure>
-<p>Shipping only the QoS change would have been the worst available outcome — it is the equivalent of calling in extra staff to shorten a checkout queue while the register is still handing back the wrong change: faster, and still wrong. A convincing improvement, a live correctness bug still in place, and evidence now pointing firmly away from the real cause.</p>
+<p>Shipping only the QoS change would have been the worst available outcome. It is the equivalent of calling in extra staff to shorten a checkout queue while the register is still handing back the wrong change: faster, and still wrong. A convincing improvement, a live correctness bug still in place, and evidence now pointing firmly away from the real cause.</p>
 <p>The third change is the one I would fight hardest to keep. Storing both clocks costs exactly one column:</p>
-<pre><code class="language-go">// before — one clock, and not the useful one
+<pre><code class="language-go">// before: one clock, and not the useful one
 colNames := append([]string{
     &quot;thing_key&quot;, &quot;time_stamp&quot;, &quot;offset_value&quot;,
 }, dataFields...)
 
-// after — event time and arrival time, side by side
+// after: event time and arrival time, side by side
 colNames := append([]string{
     &quot;thing_key&quot;, &quot;time_stamp&quot;, &quot;offset_value&quot;, &quot;received_at&quot;,
 }, dataFields...)
@@ -156,7 +156,7 @@ colNames := append([]string{
   ADD COLUMN IF NOT EXISTS received_at TIMESTAMPTZ
   DEFAULT NOW();
 </code></pre>
-<p><code>received_at − time_stamp</code> is now a directly queryable quantity: which gateways reorder, by how much, and how late a reading can realistically arrive. Before this, that delay was not merely unmonitored, it was <em>unrecoverable</em> — the only record of event time had been overwritten in memory before the row was ever written. The evidence was being discarded at the very edge of the system, before anyone downstream could look at it, and that is what made this so hard to see.</p>
+<p><code>received_at − time_stamp</code> is now a directly queryable quantity: which gateways reorder, by how much, and how late a reading can realistically arrive. Before this, that delay was not merely unmonitored, it was <em>unrecoverable</em>: the only record of event time had been overwritten in memory before the row was ever written. The evidence was being discarded at the very edge of the system, before anyone downstream could look at it, and that is what made this so hard to see.</p>
 <h2>The guard that re-created the bug</h2>
 <p>The fix did not simply trust the device. Embedded clocks drift, reset, and occasionally report times years away from reality, so the same change added a validation band around the device timestamp:</p>
 <pre><code class="language-go">diff := int64(serverTime) - int64(deviceTime)
@@ -166,15 +166,15 @@ if diff &gt; 1800 {                    // &gt;30 min out of sync
     thingsPayload.TimeStamp = serverTime    // ← and there it is
 }
 </code></pre>
-<p>This is the obvious, responsible design: use event time when it is credible, fall back to server time when it isn&#39;t. I would have written the same thing. It survived review for the same reason the sort did — in isolation, it reads as prudent.</p>
+<p>This is the obvious, responsible design: use event time when it is credible, fall back to server time when it isn&#39;t. I would have written the same thing. It survived review for the same reason the sort did: in isolation, it reads as prudent.</p>
 <p>Three months later it was deleted in its entirety.</p>
 <p>It is the software equivalent of a smoke detector that, once its battery dies, quietly starts pumping smoke back into the room instead of staying silent.</p>
 <figure>
 <img src="https://a-ryan-1.github.io/my-blogs/water-that-flowed-backwards/diagrams/06-drift-guard.png" alt="Two cards comparing the drift guard&#39;s intent against its effect. The intent card describes guarding against missing or drifted device clocks. The effect card explains that falling back writes arrival time, that a drifted clock stays drifted so nearly every reading takes the fallback, and that the down spikes returned.">
-<figcaption>Figure 6 — The fallback wrote server time. That is the original defect, scoped down to the readings the guard was built to protect.</figcaption>
+<figcaption>Figure 6. The fallback wrote server time. That is the original defect, scoped down to the readings the guard was built to protect.</figcaption>
 </figure>
 <p>Look closely at what the fallback actually does. When a device&#39;s clock is more than thirty minutes off, the guard discards the device timestamp and writes <code>serverTime</code> instead. That is the original bug, verbatim, applied to a subset of readings.</p>
-<p>And it is the worst possible subset. A meter whose clock has drifted is <em>persistently</em> drifted, so it fails the check on nearly every reading — meaning that meter&#39;s data gets arrival-time ordering while its neighbours get event time. A device drifting across the thirty-minute boundary is worse still, flipping between the two clocks mid-stream and interleaving both into the same column before the same sort. The result was down spikes: the exact symptom the fix had been written to eliminate.</p>
+<p>And it is the worst possible subset. A meter whose clock has drifted is <em>persistently</em> drifted, so it fails the check on nearly every reading. That meter&#39;s data gets arrival-time ordering while its neighbours get event time. A device drifting across the thirty-minute boundary is worse still, flipping between the two clocks mid-stream and interleaving both into the same column before the same sort. The result was down spikes: the exact symptom the fix had been written to eliminate.</p>
 <blockquote>
 <p><strong>THE FALLBACK WAS THE BUG</strong></p>
 <p>Fallback paths get the least review attention and the thinnest test coverage, precisely because they are meant to be rare. Rare is not the same as harmless. Ask what a fallback <em>does</em>, not just when it fires.</p>
@@ -184,7 +184,7 @@ if diff &gt; 1800 {                    // &gt;30 min out of sync
 <h2>What transfers</h2>
 <p>Strip out the water meters and four things remain that I expect to meet again.</p>
 <ul>
-<li><strong>Delivery is not ordering.</strong> A protocol guarantee about <em>whether</em> a message arrives says nothing about <em>when</em> it is processed relative to its siblings — and the machinery enforcing that guarantee can be the very thing that breaks the sequence.</li>
+<li><strong>Delivery is not ordering.</strong> A protocol guarantee about <em>whether</em> a message arrives says nothing about <em>when</em> it is processed relative to its siblings, and the machinery enforcing that guarantee can be the very thing that breaks the sequence.</li>
 <li><strong>Correlation with hardware is not evidence of hardware failure.</strong> Any bug with an environmental trigger will correlate with the physical conditions that trigger it. The correlation is real. The causal arrow is the part you have to earn.</li>
 <li><strong>Data discarded at a boundary cannot be recovered downstream.</strong> The device timestamp was overwritten in memory before the insert. No amount of later analysis could reconstruct it, which is why keeping both clocks is worth far more than the one column it costs.</li>
 <li><strong>Code can be correct and still be wrong.</strong> The sort was careful. The guard was prudent. Both passed review because both are defensible in isolation, and both were operating on a value that had already been corrupted upstream.</li>
@@ -194,7 +194,7 @@ if diff &gt; 1800 {                    // &gt;30 min out of sync
 <blockquote>
 <p><strong>What observation would prove our current explanation wrong?</strong></p>
 </blockquote>
-<p>For the hardware theory, the answer had been sitting in every single packet we received — in a field we overwrote before anyone thought to look at it.</p>
+<p>For the hardware theory, the answer had been sitting in every single packet we received, in a field we overwrote before anyone thought to look at it.</p>
 
 ]]></content:encoded>
 </item>

@@ -199,7 +199,7 @@ fs.writeFileSync(path.join(outDir, 'paste.html'), `<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <link rel="canonical" href="${url}">
-<title>Paste into Medium — ${esc(title)}</title>
+<title>Paste into Medium: ${esc(title)}</title>
 <style>
   body { margin: 0; background: #fff; color: #111; font: 19px/1.7 Georgia, serif; }
   main { max-width: 700px; margin: 0 auto; padding: 32px 16px 64px; }

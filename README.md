@@ -34,7 +34,7 @@ my-blogs/
 
 `build-post.js` turns `post.md` into the page and its paste version:
 - diagrams are published as PNG, because Medium cannot show SVG
-- `*Figure N — …*` lines become image captions
+- `*Figure N. …*` lines become image captions
 - tables become aligned plain text, because Medium has no tables
 - the page gets a canonical link, a description and a preview image
 - `paste.html` avoids the HTML that Medium's editor mangles on paste (see the comment in the script)
