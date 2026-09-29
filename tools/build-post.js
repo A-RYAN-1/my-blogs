@@ -151,9 +151,7 @@ const page = `<!doctype html>
 <meta property="og:description" content="${esc(dek)}">
 <meta property="og:url" content="${url}">
 <meta property="article:published_time" content="${entry.date}">
-${ogImage ? `<meta property="og:image" content="${ogImage}">\n<meta name="twitter:card" content="summary_large_image">\n` : ''}<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" media="(prefers-color-scheme: light)">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" media="(prefers-color-scheme: dark)">
-<style>${THEME}
+${ogImage ? `<meta property="og:image" content="${ogImage}">\n<meta name="twitter:card" content="summary_large_image">\n` : ''}<style>${THEME}
   article { padding-top: 48px; }
   h1 { font-size: 2.2em; margin: 0 0 .3em; }
   .dek { color: var(--muted); font-size: 1.15em; margin: 0 0 1.2em; }
@@ -162,8 +160,7 @@ ${ogImage ? `<meta property="og:image" content="${ogImage}">\n<meta name="twitte
   img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
   figure { margin: 2em 0; }
   figcaption { color: var(--muted); font-size: .85em; text-align: center; margin-top: .6em; }
-  pre { background: var(--code); padding: 14px 16px; overflow-x: auto; font-size: .78em; line-height: 1.5; border-radius: 4px; }
-  pre code.hljs { background: none; padding: 0; }
+  pre { background: var(--code); padding: 14px 16px; overflow-x: auto; white-space: pre; font-family: Menlo, Consolas, monospace; font-size: .78em; line-height: 1.5; border-radius: 4px; }
   code { font-family: Menlo, Consolas, monospace; font-size: .9em; }
   pre code { font-size: 1em; }
   blockquote { margin: 1.6em 0; padding-left: 1em; border-left: 3px solid var(--fg); font-style: italic; }
@@ -181,18 +178,6 @@ ${body}
 </article>
 <div class="wrap"><p class="byline sans muted">${esc(site.author)} · <time datetime="${entry.date}">${fmtDate(entry.date)}</time> · ${minutes} min read${tags.length ? ` · ${tags.map(esc).join(', ')}` : ''}</p></div>
 ${footer(false)}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-<script>
-// Code is stored Medium-style (<pre> with <br> lines); rebuild <code> for highlighting on the site only.
-document.querySelectorAll('pre').forEach((pre) => {
-  const code = document.createElement('code');
-  code.textContent = pre.innerHTML.replace(/<br\s*\/?>/g, '\n').replace(/<[^>]+>/g, '')
-    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
-  if (pre.dataset.lang) code.className = 'language-' + pre.dataset.lang;
-  pre.replaceChildren(code);
-  hljs.highlightElement(code);
-});
-</script>
 </body>
 </html>
 `;
