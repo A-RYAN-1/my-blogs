@@ -1,0 +1,11 @@
+{
+  "name": "my-blogs",
+  "private": true,
+  "description": "Build tooling for the published blog pages",
+  "scripts": {
+    "build": "node tools/build-post.js"
+  },
+  "dependencies": {
+    "marked": "^18.0.13"
+  }
+}
