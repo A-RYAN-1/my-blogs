@@ -13,54 +13,41 @@ told as a narrative with diagrams and the actual code.
 
 ## How this repo works
 
-Posts are drafted elsewhere. This repo only holds the finished, published versions. GitHub Pages
-serves it straight from `main`. The GitHub Pages copy is the original; Medium and dev.to copies
-point back to it as the canonical source.
+Posts are drafted elsewhere. This repo holds the finished versions as a small site of our own,
+served by GitHub Pages straight from `main`. Publishing on Medium is done by hand and doesn't
+involve this repo.
 
 ```
 my-blogs/
 ├── index.html                    ← site home: list of posts (generated)
 ├── feed.xml                      ← RSS feed with full post content (generated)
-├── posts.json                    ← post list: dates, tags, reading time, dev.to ids
+├── posts.json                    ← post list: dates, tags, reading time
 ├── site.json                     ← site title, profile links, analytics code
 ├── tools/build-post.js           ← builds a post page, home page and feed
-├── tools/devto.js                ← cross-posts a post to dev.to as a draft
 └── <post-slug>/
-    ├── index.html                ← the published page (generated)
-    ├── paste.html                ← the same story formatted for pasting into Medium (generated)
-    ├── post.md                   ← markdown source, also used for dev.to / Hashnode
+    ├── index.html                ← the post page (generated)
+    ├── post.md                   ← markdown source
     └── diagrams/*.png
 ```
 
-`build-post.js` turns `post.md` into the page and its paste version:
-- diagrams are published as PNG, because Medium cannot show SVG
+`build-post.js` turns `post.md` into the page:
+- diagrams are published as PNG
 - `*Figure N. …*` lines become image captions
-- tables become aligned plain text, because Medium has no tables
+- tables become aligned plain text
 - the page gets a canonical link, a description and a preview image
-- `paste.html` avoids the HTML that Medium's editor mangles on paste (see the comment in the script)
 - before building anything, the source goes through a leak scan for real names, hostnames,
   emails and commit hashes, and the build stops on any finding, because this repo is public
 
-## Publishing a new post
+## Adding a post
 
 ```bash
 npm install                                            # first time only
 node tools/build-post.js "<source-post-folder>" <slug> # e.g. water-that-flowed-backwards
-git add -A && git commit -m 'Publish "<Title>"' && git push
+git add -A && git commit -m 'Add "<Title>"' && git push
 ```
 
 The source folder needs a `post.md` and a `diagrams/` folder of `.png` files. GitHub Pages
-redeploys within a minute or two. Then:
-
-1. Open `https://a-ryan-1.github.io/my-blogs/<slug>/` and check it.
-2. Open `<slug>/paste.html`, press Ctrl+A and Ctrl+C, and paste into a new story at
-   <https://medium.com/new-story>. (Medium's importer was tried and mangles code and spacing.)
-3. Tidy the draft: move each italic "Figure N" line into its image's caption, set the subtitle,
-   pull quotes, image widths and tags, and set the canonical link (Story settings → Advanced) to
-   the post URL. Then publish.
-4. Optionally cross-post to dev.to: `node tools/devto.js <slug>` creates an unpublished draft
-   there with a canonical link back here (running it again updates the draft). It needs a dev.to
-   API key in `~/.config/my-blogs/devto_api_key`, kept outside the repo.
+redeploys within a minute or two.
 
 Visitor stats use [GoatCounter](https://www.goatcounter.com): no cookies, free for personal
 sites. Put the site code in `site.json` → `goatcounter` and rebuild to turn it on.
